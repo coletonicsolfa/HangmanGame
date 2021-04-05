@@ -1,0 +1,447 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+					
+public class Program
+{
+	public static void Main()
+	{
+		ConsoleMessage.WelcomeTxt();
+		GameHandler game = new GameHandler();
+		if(game.gameOver == false)
+		{
+			game.RunGame();
+		}		
+	}
+}
+
+public class UserInput
+{
+	public static bool ReadyToPlayInput()
+	{
+		string s = Console.ReadLine();
+		s = s.Trim().ToUpper();
+		if(s == "Y" || s == "YES" || s == "SURE" || s == "YEAH")
+		{
+			return true;
+		}
+		return false;
+	}
+	
+	public static int ReadGameType()
+	{
+		Console.WriteLine("Would you like to play with one word or two? \n(Type 1 or 2 and press enter)");
+		string s = Console.ReadLine();
+		s = s.Trim().ToUpper();
+		if(s == "1" || s == "ONE" || Convert.ToInt32(s) == 1)
+		{
+			return 1;
+		}
+		if(s == "2" || s == "TWO" || Convert.ToInt32(s) == 2)
+		{
+			return 2;
+		}
+		return 0;
+	}
+	
+	public static char ReadGuess()
+	{
+		Console.Write("\n Your guess: ");
+		char guess = Convert.ToChar(Console.ReadLine());
+		guess = Char.ToUpper(guess);
+		return guess;
+	}
+}
+
+//Class holding all of the messages for game situations
+public class ConsoleMessage
+{
+	public static void WelcomeTxt()
+	{
+		Console.WriteLine("  ** Hangman! ** \n");
+	}
+	
+	public static void GenericErrorTxt()
+	{
+		Console.WriteLine("Sorry, somethingwent wrong..");
+	}
+	
+	public static void PlayGameTxt()
+	{
+		Console.WriteLine("Ready to play a round of hangman? Answer with a form of yes or no");
+	}
+	
+	public static void WinMessage()
+	{
+		Console.WriteLine("Way to go, you solved it!");
+	}
+	public static void LoseMessage()
+	{
+		Console.WriteLine("Sorry, you lose. Better luck next time!");
+	}
+	public static void GameEndTxt()
+	{
+		Console.WriteLine("Ending game. See you later! (Press any key to exit.)");
+		Console.ReadLine();
+	}
+}
+
+public class LevelReader
+{
+	public static int ReadLevel()
+	{
+		switch(Convert.ToInt32(UserInput.ReadGameType()))
+		{
+			case 1:
+				return 1;
+				//break;
+			case 2:
+				return 2;
+				//break;
+			default:
+				ConsoleMessage.GenericErrorTxt();
+				return 0;
+				//break;
+		}
+	}
+}
+
+public class GuessOperations
+{
+	//bool to check if the solution contains the guess
+	//if true, then use a foreach loop to add up each character in guesses
+	
+	public static bool Compare(string solution, char guess)
+	{		
+		
+		guess = Char.ToUpper(guess);
+		if(solution.Contains(guess.ToString()))
+		   {
+			   return true;
+		   }
+		   return false;
+	}
+	
+	public static bool AddGuess(List<char> guesses, char guess)
+	{
+		if(guesses.Contains(guess) == false)
+		{
+			guesses.Add(guess);
+			return true;
+		}
+		else
+		{
+			Console.WriteLine("You've already guessed that letter.");
+			return false;
+		}
+	}
+	
+	public static int GuessSumUp(string solution, char guess)
+	{
+		int sum = 0;
+		
+		foreach(char c in solution)
+		{
+			if(guess == c)
+			{
+				sum++;
+			}
+		}
+		
+		return sum;
+	}
+	//UserInput.ReadGuess will be used to get the user's guess
+}
+
+public class WordSelect
+{
+	//For now, just assigning a set choice; make random in the future
+	//Remember to use *out in calling the method
+    static Random rnd = new Random();
+
+	public static void AssignSolution(string[] arr, out string solution, out int solutionWordCount)
+	{
+        int temp = rnd.Next(0, arr.Length);
+		solution = arr[temp];
+		solutionWordCount = solution.Length;
+	}
+	
+	public static void AssignSolution(string[] arr1, string[] arr2, out string solution, out int solutionWordCount)
+	{
+		//first array is nouns, second is adjectives. for the solutin, flip the words for it to make sense!
+        int temp1 = rnd.Next(0, arr1.Length);
+        int temp2 = rnd.Next(0, arr2.Length);		
+		solution = arr2[temp2] + " " + arr1[temp1];
+		solutionWordCount = arr1[temp1].Length + arr2[temp2].Length;		
+	}
+}
+
+public class GameHandler
+{	
+	private string solution;
+	private int solutionWordCount;
+	private int life = 7;
+	int correctGuessCount = 0;
+	private bool roundOver = false;
+	public bool gameOver = true;
+	List<char> Guesses = new List<char>();
+	
+	public GameHandler()
+	{
+		//DrawStand with 10 as the argument is the base case to show the whole thing
+		HangmanGame.DrawStand(10);
+		ConsoleMessage.PlayGameTxt();
+		GameSetup();
+	}
+	
+	public void GameSetup()
+	{
+		//Load up the solution and word count to use for game
+		if(UserInput.ReadyToPlayInput() == false)
+		{
+			GameEnd();
+		}
+		else
+		{
+			gameOver = false;
+			int wordCount = LevelReader.ReadLevel();
+			if(wordCount == 0)
+			{
+				GameEnd();
+			}
+			if(wordCount == 1)
+			{
+				//in future, change integer to a choice, not a permanent number
+				WordSelect.AssignSolution(HangmanGame.nouns, out solution, out solutionWordCount);
+				//Console.WriteLine(solution + "; Length: " + solutionWordCount);
+			}
+			if(wordCount == 2)
+			{
+				//in future, change integer to a choice, not a permanent number
+				WordSelect.AssignSolution(HangmanGame.nouns, HangmanGame.adjectives, out solution, out solutionWordCount);
+				//Console.WriteLine(solution + "; Length: " + solutionWordCount);
+			}
+		}
+	}
+	
+	public void RunGame()
+	{
+				
+		//Loop until a win or lose happens; if is does
+		for(int i = 50; i > 0; i--)
+		{			
+			ShowGuesses();
+			ShowCurrentState(life);
+			ShowSolution();
+			
+			HandleGuess();
+			
+			CheckForWinLose();
+			
+			if(this.roundOver == true)
+			{
+				i = 0;
+			}
+			Console.WriteLine("--------------------------------------------");
+		}
+		
+		GameEnd();
+	}
+	
+	public void HandleGuess()
+	{
+		//tempNum is the return of AddGuess, which returns the correct guess count. If 0, the guess was not correct, which leads to losing a life; if -1, the letter has already been guessed.
+		//int tempNum = GuessOperations.AddGuess(Guesses, solution, UserInput.ReadGuess());
+		char g = UserInput.ReadGuess();
+		
+		//if the guess is already in the Guesses list, it will return false, so don't do anything.
+		if(GuessOperations.AddGuess(Guesses, g) == true)
+		{
+			//The guess wasn't already guessed, so now compare to the solution to see if the guess has any matches
+			if(GuessOperations.Compare(solution, g) == false)
+			{
+				this.life--;
+			}
+			//If there was a match, add to the count correct (the number of times that the guess appears in the solution) 
+			else if(GuessOperations.Compare(solution, g) == true)
+			{
+				this.correctGuessCount += GuessOperations.GuessSumUp(solution, g);
+				//Console.WriteLine("New Guess Count: " + this.correctGuessCount);
+			}
+		}
+	}
+	
+	public void CheckForWinLose()
+	{
+		//correctGuessCount is the variable to use
+		if(this.solutionWordCount == this.correctGuessCount)
+		{
+			ShowSolution();
+			ConsoleMessage.WinMessage();
+			this.roundOver = true;
+		}
+		if(this.life == 0)
+		{
+			ConsoleMessage.LoseMessage();
+			this.roundOver = true;
+		}
+		
+	}
+	
+	public void ShowCurrentState(int lives)
+	{
+		HangmanGame.DrawStand(lives);
+	}
+	
+	public void ShowGuesses()
+	{
+		Console.Write("\nCurrent Guesses:  ");
+		foreach(char c in Guesses)
+		{
+			Console.Write(c + "  ");
+		}
+		//Console.WriteLine("FOR TEST PURPOSES: Current Life: {0}", this.life);
+		Console.WriteLine();		
+	}
+	
+	public void ShowSolution()
+	{
+		Console.WriteLine();
+		for(int i = 0; i < solution.Length; i++)
+		{
+			if(Guesses.Contains(solution[i]))
+			{
+				Console.Write("  " + solution[i] + "  ");
+			}
+			else if(solution[i].ToString() == " ")
+			{
+				Console.Write("      ");
+			}
+			else
+			{
+				Console.Write("  __  ");
+			}
+		}
+		Console.WriteLine();
+	}
+	
+	public void GameEnd()
+	{
+		ConsoleMessage.GameEndTxt();
+		this.gameOver = true;
+	}	
+}
+
+public static class HangmanGame
+{	
+	//Explore which option is best
+	//Dictionary<string, string> wordList = new Dictionary<string, string>();
+	public static string[] nouns = new string[]
+	{
+		"AVALANCHE", "BLANKET", "CARRIAGE", "DYNAMITE", "EVENING", "FRACTION", "GATE", "HOOLIGAN", "ICEBERG"
+	};
+	public static string[] adjectives = new string[]
+	{
+		"ANGRY", "BRAVE", "CAREFUL", "DULL", "EVERLASTING", "FUTILE", "GIDDY", "HORRIBLE", "IMPOSSIBLE"
+	};
+	public static void DrawStand(int lives)
+	{
+		switch(lives)
+		{
+			case 0:
+			case 10:
+				//Program Base Case and Lose Case
+				Console.WriteLine("|------.");
+				Console.WriteLine("|      O");
+				Console.WriteLine("|     \\|/");
+				Console.WriteLine("|      |");
+				Console.WriteLine("|     / \\");
+				Console.WriteLine("|___________");
+				break;
+			case 1:
+				Console.WriteLine("|------.");
+				Console.WriteLine("|      O");
+				Console.WriteLine("|     \\|/");
+				Console.WriteLine("|      |");
+				Console.WriteLine("|     /");
+				Console.WriteLine("|___________");
+				break;
+			case 2:
+				Console.WriteLine("|------.");
+				Console.WriteLine("|      O");
+				Console.WriteLine("|     \\|/");
+				Console.WriteLine("|      |");
+				Console.WriteLine("|");
+				Console.WriteLine("|___________");
+				break;
+			case 3:
+				Console.WriteLine("|------.");
+				Console.WriteLine("|      O");
+				Console.WriteLine("|     \\|/");
+				Console.WriteLine("|");
+				Console.WriteLine("|");
+				Console.WriteLine("|___________");
+				break;
+			case 4:
+				Console.WriteLine("|------.");
+				Console.WriteLine("|      O");
+				Console.WriteLine("|     \\|");
+				Console.WriteLine("|");
+				Console.WriteLine("|");
+				Console.WriteLine("|___________");
+				break;
+			case 5:
+				Console.WriteLine("|------.");
+				Console.WriteLine("|      O");
+				Console.WriteLine("|      |");
+				Console.WriteLine("|");
+				Console.WriteLine("|");
+				Console.WriteLine("|___________");
+				break;
+			case 6:
+				Console.WriteLine("|------.");
+				Console.WriteLine("|      O");
+				Console.WriteLine("|");
+				Console.WriteLine("|");
+				Console.WriteLine("|");
+				Console.WriteLine("|___________");
+				break;
+			case 7:
+				Console.WriteLine("|------.");
+				Console.WriteLine("|");
+				Console.WriteLine("|");
+				Console.WriteLine("|");
+				Console.WriteLine("|");
+				Console.WriteLine("|___________");
+				break;
+			default:
+				ConsoleMessage.GenericErrorTxt();
+				Console.WriteLine("Out of Bounds Input");
+				break;
+		}
+	}
+	
+	/*
+	//Fully Drawn Stand
+	public void DrawStand()
+	{
+		
+		Console.WriteLine("|------.");
+		Console.WriteLine("|      O");
+		Console.WriteLine("|     \\|/");
+		Console.WriteLine("|      |");
+		Console.WriteLine("|     / \\");
+		Console.WriteLine("|___________");
+	}
+	public void DrawBaseStand()
+	{
+		Console.WriteLine(" ** Hangman **! \n");
+		Console.WriteLine("|------.");
+		Console.WriteLine("|");
+		Console.WriteLine("|");
+		Console.WriteLine("|");
+		Console.WriteLine("|");
+		Console.WriteLine("|___________");
+	}
+	*/
+}
